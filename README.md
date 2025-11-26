@@ -1,5 +1,17 @@
 <body>
     <h1>.NET Minimal API for Distributed System</h1>
+    <h2>Available Endpoints</h2>
+    <ul>
+        <li><strong>/</strong> - returns "Server started!"</li>
+        <li><strong>/get</strong> - returns file content.</li>
+        <li><strong>/replace</strong> - updates file content.</li>
+        <p>Replace request body:</p>
+        <pre><code>{
+    "Source": "Davlyatshin",
+    "ID": 10,
+    "Payload": "Hello world!"
+}</code></pre>
+    </ul>
     <h2>Setup and Run</h2>
     <ol>
         <li>Clone the repository:</li>
