@@ -41,4 +41,4 @@ app.MapGet("/get", async (CancellationToken cancellationToken, [FromServices] IF
     }
 });
 
-app.Run("http://localhost:3000");
+app.Run();
