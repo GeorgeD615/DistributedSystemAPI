@@ -15,5 +15,4 @@ namespace DistributedSystemAPI.Models.Http
             await httpContext.Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(_message ?? "Внутренняя ошибка сервера"));
         }
     }
-
 }
