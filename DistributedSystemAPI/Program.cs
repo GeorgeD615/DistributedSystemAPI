@@ -7,18 +7,19 @@ using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddSingleton<IFileManager, FileManager>();
-builder.Services.Configure<FileLocation>(builder.Configuration.GetSection("FileLocation"));
+builder.Services.AddSingleton<IPayloadManager, PayloadManager>();
+builder.Services.AddSingleton<ISnapshotManager, SnapshotManager>();
+builder.Services.Configure<FileManagmentOptions>(builder.Configuration.GetSection("FileManagmentOptions"));
 
 var app = builder.Build();
 
 app.MapGet("/", () => "Server started!");
 
-app.MapPut("/replace", async (CancellationToken cancellationToken, ReplaceRequestModel request, [FromServices] IFileManager fileManager) =>
+app.MapPut("/replace", async (CancellationToken cancellationToken, ReplaceRequestModel request, [FromServices] DistributedSystemAPI.Abstractions.IPayloadManager fileManager) =>
 {
     try
     {
-        await fileManager.WriteIntoFile(request.Payload, cancellationToken);
+        await fileManager.RewritePayloadAsync(request.Payload, cancellationToken);
         return Results.Ok();
     }
     catch (Exception ex)
@@ -28,11 +29,11 @@ app.MapPut("/replace", async (CancellationToken cancellationToken, ReplaceReques
     }
 });
 
-app.MapGet("/get", async (CancellationToken cancellationToken, [FromServices] IFileManager fileManager) => 
+app.MapGet("/get", async (CancellationToken cancellationToken, [FromServices] DistributedSystemAPI.Abstractions.IPayloadManager fileManager) => 
 {
     try
     {
-        return Results.Ok(await fileManager.ReadFromFile(cancellationToken));
+        return Results.Ok(await fileManager.ReadPayloadAsync(cancellationToken));
     }
     catch (Exception ex)
     {
