@@ -1,8 +1,10 @@
-﻿namespace DistributedSystemAPI.Abstractions;
+﻿using DistributedSystemAPI.Models;
+
+namespace DistributedSystemAPI.Abstractions;
 
 internal interface IPayloadManager
 {
-    Task RewritePayloadAsync(string content, CancellationToken cancellationToken);
+    Task RewritePayloadAsync(ReplaceRequestModel model, CancellationToken cancellationToken);
 
     Task<string> ReadPayloadAsync(CancellationToken cancellationToken);
 }
