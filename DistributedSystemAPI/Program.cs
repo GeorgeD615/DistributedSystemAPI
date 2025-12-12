@@ -48,4 +48,21 @@ app.MapGet("/get", async (CancellationToken cancellationToken, [FromServices] IP
     }
 });
 
+app.MapGet("/test", async (CancellationToken cancellationToken) =>
+{
+    var htmlContent = @"
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Minimal API HTML</title>
+    </head>
+    <body>
+        <h1>Hello from C# Minimal API!</h1>
+        <p>This is some HTML content.</p>
+    </body>
+    </html>";
+
+    return Results.Content(htmlContent, "text/html");
+});
+
 app.Run();
