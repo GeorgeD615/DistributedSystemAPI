@@ -2,8 +2,11 @@
 using DistributedSystemAPI.Models;
 using DistributedSystemAPI.Models.Cfg;
 using Microsoft.Extensions.Options;
+using System.Collections.Concurrent;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Unicode;
 namespace DistributedSystemAPI.Services;
 
 internal class PayloadManager : IPayloadManager
@@ -19,7 +22,15 @@ internal class PayloadManager : IPayloadManager
     private readonly bool _isMaster;
     private readonly List<string> _followers;
 
+    private readonly ConcurrentDictionary<string, int> _clockTable = [];
+
     private DateTime _lastSnapshotTime;
+
+    private readonly JsonSerializerOptions _jsonSerializerOptions = new()
+    {
+        Encoder = JavaScriptEncoder.Create(UnicodeRanges.BasicLatin, UnicodeRanges.Cyrillic),
+        WriteIndented = true
+    };
 
     public PayloadManager(IOptions<FileManagmentOptions> fileManagmentOptions, IOptions<NodeOptions> nodeOptions, ISnapshotManager snapshotManager, IHttpClientFactory httpClientFactory, ILogger<PayloadManager> logger)
     {
@@ -58,11 +69,21 @@ internal class PayloadManager : IPayloadManager
 
     public async Task RewritePayloadAsync(ReplaceRequestModel model, CancellationToken cancellationToken)
     {
+        var maxClockValue = _clockTable.Select(el => el.Value).DefaultIfEmpty(0).Max();
+
+        if (maxClockValue >= model.ID)
+        {
+            _logger.LogWarning("Запрос не выполнен. Максимальное логическое время в системе {maxClockValue}.", maxClockValue);
+            return;
+        }
+
         if (!File.Exists(_payloadFilePath))
             await CreateFileAsync(cancellationToken);
 
+
         using StreamWriter payloadWriter = new(_payloadFilePath);
         await payloadWriter.WriteAsync(new StringBuilder(model.Payload), cancellationToken);
+        _clockTable[model.Source] = model.ID;
 
         if(DateTime.Now - _lastSnapshotTime >= TimeSpan.FromMinutes(_snapshotTimeInterval))
         {
@@ -73,17 +94,17 @@ internal class PayloadManager : IPayloadManager
         if (!_isMaster)
             return;
 
-        await SendPayloadToFollowers(model);
+        await SendPayloadToFollowers(model, cancellationToken);
     }
 
-    public async Task SendPayloadToFollowers(ReplaceRequestModel model)
+    public async Task SendPayloadToFollowers(ReplaceRequestModel model, CancellationToken cancellationToken)
     {
         foreach (var f in _followers)
         {
             try
             {
                 var content = JsonContent.Create(model);
-                using var response = await _httpClientFactory.CreateClient().PutAsync($"{f}/replace", content);
+                using var response = await _httpClientFactory.CreateClient().PutAsync($"{f}/replace", content, cancellationToken);
 
                 if (response.IsSuccessStatusCode)
                     _logger.LogInformation("Сообщение успешно доставлено по адресу: {f}.", f);
@@ -96,4 +117,6 @@ internal class PayloadManager : IPayloadManager
             }
         }
     }
+
+    public string ClockTableJson => JsonSerializer.Serialize(_clockTable, _jsonSerializerOptions);
 }

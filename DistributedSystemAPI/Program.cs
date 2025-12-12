@@ -21,11 +21,11 @@ var app = builder.Build();
 
 app.MapGet("/", () => "Server started!");
 
-app.MapPut("/replace", async (CancellationToken cancellationToken, ReplaceRequestModel request, [FromServices] IPayloadManager fileManager) =>
+app.MapPut("/replace", async (CancellationToken cancellationToken, ReplaceRequestModel request, [FromServices] IPayloadManager payloadManager) =>
 {
     try
     {
-        await fileManager.RewritePayloadAsync(request, cancellationToken);
+        await payloadManager.RewritePayloadAsync(request, cancellationToken);
         return Results.Ok();
     }
     catch (Exception ex)
@@ -35,11 +35,11 @@ app.MapPut("/replace", async (CancellationToken cancellationToken, ReplaceReques
     }
 });
 
-app.MapGet("/get", async (CancellationToken cancellationToken, [FromServices] IPayloadManager fileManager) => 
+app.MapGet("/get", async (CancellationToken cancellationToken, [FromServices] IPayloadManager payloadManager) => 
 {
     try
     {
-        return Results.Ok(await fileManager.ReadPayloadAsync(cancellationToken));
+        return Results.Content(await payloadManager.ReadPayloadAsync(cancellationToken), "text/plain", System.Text.Encoding.UTF8);
     }
     catch (Exception ex)
     {
@@ -125,8 +125,12 @@ app.MapGet("/test", (CancellationToken cancellationToken) =>
 
     </body>
     </html>";
+    return Results.Content(htmlContent, "text/html", System.Text.Encoding.UTF8);
+});
 
-    return Results.Content(htmlContent, "text/html");
+app.MapGet("/vclock", (CancellationToken cancellationToken, [FromServices] IPayloadManager payloadManager) =>
+{
+    return Results.Content(payloadManager.ClockTableJson, "text/plain", System.Text.Encoding.UTF8);
 });
 
 app.Run();
