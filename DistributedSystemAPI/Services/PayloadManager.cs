@@ -1,9 +1,11 @@
 ﻿using DistributedSystemAPI.Abstractions;
 using DistributedSystemAPI.Models;
 using DistributedSystemAPI.Models.Cfg;
+using Microsoft.AspNetCore.JsonPatch;
+using Microsoft.AspNetCore.JsonPatch.Operations;
 using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
 using System.Collections.Concurrent;
-using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Unicode;
@@ -54,7 +56,7 @@ internal class PayloadManager : IPayloadManager
         if (!File.Exists(_payloadFilePath))
             using (StreamWriter sw = new(_payloadFilePath))
             {
-                await sw.WriteAsync("Initial text.");
+                await sw.WriteAsync("{}");
             }
     }
 
@@ -69,32 +71,66 @@ internal class PayloadManager : IPayloadManager
 
     public async Task RewritePayloadAsync(ReplaceRequestModel model, CancellationToken cancellationToken)
     {
-        var maxClockValue = _clockTable.Select(el => el.Value).DefaultIfEmpty(0).Max();
-
-        if (maxClockValue >= model.ID)
-        {
-            _logger.LogWarning("Запрос не выполнен. Максимальное логическое время в системе {maxClockValue}.", maxClockValue);
+        if (!IsClockValid(model))
             return;
-        }
 
         if (!File.Exists(_payloadFilePath))
             await CreateFileAsync(cancellationToken);
 
+        var json = await File.ReadAllTextAsync(_payloadFilePath, cancellationToken);
+        if (string.IsNullOrWhiteSpace(json))
+            json = "{}";
 
-        using StreamWriter payloadWriter = new(_payloadFilePath);
-        await payloadWriter.WriteAsync(new StringBuilder(model.Payload), cancellationToken);
-        _clockTable[model.Source] = model.ID;
+        var state = JsonConvert.DeserializeObject<Dictionary<string, object>>(json)
+                    ?? new Dictionary<string, object>();
 
-        if(DateTime.Now - _lastSnapshotTime >= TimeSpan.FromMinutes(_snapshotTimeInterval))
+        Operation<Dictionary<string, object>> operation;
+
+        try
+        {
+            operation = JsonConvert.DeserializeObject<Operation<Dictionary<string, object>>>(
+                model.Payload
+            ) ?? throw new Exception("Empty patch operation");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("Некорректная JSON Patch операция: {err}", ex.Message);
+            throw;
+        }
+
+        var patch = new JsonPatchDocument<Dictionary<string, object>>();
+        patch.Operations.Add(operation);
+
+        try
+        {
+            patch.ApplyTo(state);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("Ошибка применения JSON Patch: {err}", ex.Message);
+            throw;
+        }
+
+        await File.WriteAllTextAsync(
+            _payloadFilePath,
+            JsonConvert.SerializeObject(state, Formatting.Indented),
+            cancellationToken
+        );
+
+        _clockTable.AddOrUpdate(
+            model.Source,
+            model.ID,
+            (_, old) => Math.Max(old, model.ID)
+        );
+
+        if (DateTime.Now - _lastSnapshotTime >= TimeSpan.FromMinutes(_snapshotTimeInterval))
         {
             await _snapshotManager.TakeSnapshotAsync(model.Payload, cancellationToken);
             _lastSnapshotTime = DateTime.Now;
         }
 
-        if (!_isMaster)
-            return;
-
-        await SendPayloadToFollowers(model, cancellationToken);
+        if (_isMaster)
+            await SendPayloadToFollowers(model, cancellationToken);
     }
 
     public async Task SendPayloadToFollowers(ReplaceRequestModel model, CancellationToken cancellationToken)
@@ -118,5 +154,22 @@ internal class PayloadManager : IPayloadManager
         }
     }
 
-    public string ClockTableJson => JsonSerializer.Serialize(_clockTable, _jsonSerializerOptions);
+    public string ClockTableJson => System.Text.Json.JsonSerializer.Serialize(_clockTable, _jsonSerializerOptions);
+
+    private bool IsClockValid(ReplaceRequestModel model)
+    {
+        if (_clockTable.TryGetValue(model.Source, out var lastSeen))
+        {
+            if (model.ID <= lastSeen)
+            {
+                _logger.LogWarning(
+                    "Запрос отклонён. Source={source}, ID={id}, LastSeen={lastSeen}",
+                    model.Source, model.ID, lastSeen
+                );
+                return false;
+            }
+        }
+
+        return true;
+    }
 }
