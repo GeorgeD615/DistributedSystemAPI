@@ -1,0 +1,45 @@
+﻿version: "3.9"
+
+services:
+  master:
+    build: .
+    container_name: master
+    ports:
+      - "3000:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Production"
+      NodeOptions__IsMaster: "true"
+      NodeOptions__Followers__0: "http://follower1:8080"
+      NodeOptions__Followers__1: "http://follower2:8080"
+      NodeOptions__Followers__2: "http://follower3:8080"
+    depends_on:
+      - follower1
+      - follower2
+      - follower3
+
+  follower1:
+    build: .
+    container_name: follower1
+    ports:
+      - "3001:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Production"
+      NodeOptions__IsMaster: "false"
+
+  follower2:
+    build: .
+    container_name: follower2
+    ports:
+      - "3002:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Production"
+      NodeOptions__IsMaster: "false"
+
+  follower3:
+    build: .
+    container_name: follower3
+    ports:
+      - "3003:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Production"
+      NodeOptions__IsMaster: "false"
