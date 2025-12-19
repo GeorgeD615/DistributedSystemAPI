@@ -12,8 +12,6 @@ builder.Services.AddSingleton<ISnapshotManager, SnapshotManager>();
 
 builder.Services.AddHttpClient();
 
-builder.Logging.AddConsole();
-
 builder.Services.Configure<FileManagmentOptions>(builder.Configuration.GetSection("FileManagmentOptions"));
 builder.Services.Configure<NodeOptions>(builder.Configuration.GetSection("NodeOptions"));
 

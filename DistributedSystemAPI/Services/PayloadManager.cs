@@ -81,8 +81,7 @@ internal class PayloadManager : IPayloadManager
         if (string.IsNullOrWhiteSpace(json))
             json = "{}";
 
-        var state = JsonConvert.DeserializeObject<Dictionary<string, object>>(json)
-                    ?? new Dictionary<string, object>();
+        var state = JsonConvert.DeserializeObject<Dictionary<string, object>>(json) ?? [];
 
         Operation<Dictionary<string, object>> operation;
 

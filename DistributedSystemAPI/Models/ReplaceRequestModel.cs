@@ -1,6 +1,4 @@
-﻿using Microsoft.AspNetCore.JsonPatch;
-
-namespace DistributedSystemAPI.Models;
+﻿namespace DistributedSystemAPI.Models;
 
 internal record ReplaceRequestModel
 {
