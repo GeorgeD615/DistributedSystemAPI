@@ -71,6 +71,7 @@ internal class PayloadManager : IPayloadManager
 
     public async Task RewritePayloadAsync(ReplaceRequestModel model, CancellationToken cancellationToken)
     {
+        _logger.LogInformation("Получен запрос. patch:{p}, source:{s}, id:{i}.", model.Payload, model.Source, model.ID);
         if (!IsClockValid(model))
             return;
 
