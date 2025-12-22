@@ -24,7 +24,7 @@ internal class SnapshotManager: ISnapshotManager
         if (!File.Exists(_snapshotFilePath))
             using (StreamWriter sw = new(_snapshotFilePath))
             {
-                await sw.WriteAsync("Snapshoots:\n");
+                await sw.WriteAsync("");
             }
     }
 
