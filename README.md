@@ -108,10 +108,6 @@
         <li><strong>Follower 2:</strong> <code>http://localhost:3002</code></li>
         <li><strong>Follower 3:</strong> <code>http://localhost:3003</code></li>
     </ul>
-    <p>
-        Internally, containers communicate using Docker service names
-        (e.g. <code>http://follower1:8080</code>), not <code>localhost</code>.
-    </p>
     <h2>Notes</h2>
     <ul>
         <li>The system demonstrates <strong>eventual consistency</strong></li>
